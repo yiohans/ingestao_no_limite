@@ -32,3 +32,16 @@ Para não travar no contrato de dados ou ser desclassificado por estouro de mem�
 O ranking é ordenado por **Menor Tempo de Execução (Wall Time)** e desempata por **Menor Espaço Consumido em Storage (MB)**. 
 
 > *"Engenharia de dados de verdade não é sobre contratar o maior cluster da nuvem, é sobre escrever código otimizado."*# ingestao_no_limite
+
+### 🚀 Como Submeter sua Solução
+
+1. **Faça um Fork** deste repositório para a sua conta do GitHub.
+2. Clone o seu fork na sua máquina local e desenvolva sua solução em qualquer linguagem (Python, Rust, Go, C++, etc.).
+3. Garanta que o **`Dockerfile` na raiz do seu repositório** saiba compilar/executar seu código e salvar a saída Delta Lake no MinIO (`s3://marketing-leads/silver_empresas`).
+4. Crie um arquivo JSON dentro da pasta `submissoes/` nomeado com seu usuário do GitHub (ex: `submissoes/seu_usuario.json`) com o seguinte conteúdo:
+
+```json
+{
+  "participante": "seu_usuario",
+  "repositorio": "[https://github.com/seu_usuario/ingestao_no_limite](https://github.com/seu_usuario/ingestao_no_limite)"
+}

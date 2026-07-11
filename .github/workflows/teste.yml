@@ -1,18 +1,32 @@
-name: Teste de Ingestao Automatizado
+name: Avaliador de Submissoes
 
 on:
   pull_request:
+    paths:
+      - 'submissoes/*.json'
     branches: [ main ]
 
 jobs:
   avaliar:
     runs-on: self-hosted
     steps:
-      - name: Checkout do codigo do participante
+      - name: Checkout da Main
         uses: actions/checkout@v4
+
+      - name: Instalar dependencias do Juiz (jq)
+        run: |
+          sudo apt-get install -y jq
 
       - name: Executar Avaliacao Oficial no Servidor
         run: |
-          PR_USER="${{ github.actor }}"
+          # Pega o arquivo JSON alterado ou adicionado no PR
+          CHANGED_FILE=$(git diff --name-only origin/main HEAD | grep 'submissoes/.*\.json$' | head -n 1)
+
+          if [ -z "$CHANGED_FILE" ]; then
+            echo "Nenhum arquivo JSON de submissao encontrado no PR."
+            exit 1
+          fi
+
+          echo "--> Arquivo de submissao detectado: $CHANGED_FILE"
           chmod +x avaliador.sh
-          ./avaliador.sh "$PR_USER"
+          ./avaliador.sh "$CHANGED_FILE"
