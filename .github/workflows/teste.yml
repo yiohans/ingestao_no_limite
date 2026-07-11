@@ -10,11 +10,16 @@ jobs:
   avaliar:
     runs-on: self-hosted
     steps:
-      - name: Checkout da Main
+      - name: Checkout da Main com Histórico Completo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Baixa as refs remotas para o git diff funcionar
 
       - name: Executar Avaliacao Oficial no Servidor
         run: |
+          # Garante que a ref da origin/main existe localmente
+          git fetch origin main:origin/main
+
           CHANGED_FILE=$(git diff --name-only origin/main HEAD | grep 'submissoes/.*\.json$' | head -n 1)
 
           if [ -z "$CHANGED_FILE" ]; then
