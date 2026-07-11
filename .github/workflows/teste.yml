@@ -10,23 +10,33 @@ jobs:
   avaliar:
     runs-on: self-hosted
     steps:
-      - name: Checkout da Main com Histórico Completo
+      - name: Checkout do PR
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Baixa as refs remotas para o git diff funcionar
+          fetch-depth: 0
+
+      - name: Identificar arquivos alterados
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: submissoes/*.json
 
       - name: Executar Avaliacao Oficial no Servidor
         run: |
-          # Garante que a ref da origin/main existe localmente
-          git fetch origin main:origin/main
+          # Pega o primeiro arquivo JSON detectado pela Action
+          CHANGED_FILE="${{ steps.changed-files.outputs.all_changed_files }}"
 
-          CHANGED_FILE=$(git diff --name-only origin/main HEAD | grep 'submissoes/.*\.json$' | head -n 1)
+          # Se vier multiplos arquivos no PR, pega apenas o primeiro da lista
+          CHANGED_FILE=$(echo "$CHANGED_FILE" | awk '{print $1}')
 
           if [ -z "$CHANGED_FILE" ]; then
-            echo "Nenhum arquivo JSON de submissao encontrado no PR."
+            echo "❌ Nenhum arquivo JSON de submissao encontrado nas alteracoes do PR."
             exit 1
           fi
 
+          echo "================================================="
           echo "--> Arquivo de submissao detectado: $CHANGED_FILE"
+          echo "================================================="
+
           chmod +x avaliador.sh
           ./avaliador.sh "$CHANGED_FILE"
