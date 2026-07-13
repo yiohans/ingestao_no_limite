@@ -206,6 +206,11 @@ log_ok "Imagem construída"
 # ------------------------------------------------------------------------------
 docker rm -f "$CONTAINER_APP_NAME" &>/dev/null || true
 
+# Host-side config (PG_HOST=localhost, MINIO_ENDPOINT=localhost) é para o juiz no host.
+# Dentro do container do participante os hosts são os nomes na rede Docker.
+PG_CONTAINER_HOST="${PG_CONTAINER_HOST:-${PG_CONTAINER:-postgres_db}}"
+S3_CONTAINER_ENDPOINT="${S3_CONTAINER_ENDPOINT:-http://minio:9000}"
+
 DOCKER_ARGS=(
     --name "$CONTAINER_APP_NAME"
     --cpus="2.0"
@@ -214,12 +219,12 @@ DOCKER_ARGS=(
     --pids-limit=512
     -e "PARTICIPANTE=$PARTICIPANTE"
     -e "PG_TABLE=$PG_TABLE"
-    -e "PG_HOST=${PG_HOST:-postgres_db}"
+    -e "PG_HOST=$PG_CONTAINER_HOST"
     -e "PG_PORT=${PG_PORT:-5432}"
     -e "PG_USER=${PG_USER:-homelab_postgres}"
     -e "PG_PASSWORD=${PG_PASSWORD:-}"
     -e "PG_DB=${PG_DB_EMPRESAS:-db_empresas}"
-    -e "S3_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}"
+    -e "S3_ENDPOINT=$S3_CONTAINER_ENDPOINT"
     -e "AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY:-admin}"
     -e "AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY:-minio_password}"
     -e "MINIO_BUCKET=${MINIO_BUCKET:-marketing-leads}"
