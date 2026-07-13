@@ -47,10 +47,14 @@ log_warn()  { echo -e "[\033[1;33mALERTA\033[0m] $(date +'%H:%M:%S') - $*"; }
 log_error() { echo -e "[\033[1;31mERRO\033[0m]    $(date +'%H:%M:%S') - $*"; }
 
 # ------------------------------------------------------------------------------
-# Juiz Python
+# Juiz Python (venv local — evita PEP 668 / dependências globais ausentes)
 # ------------------------------------------------------------------------------
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/scripts/lib/ensure-judge-venv.sh"
+
 run_judge() {
-    python3 "$JUDGE_DIR/validar.py" "$@"
+    resolve_judge_python || { log_error "Falha ao preparar venv do juiz (python3-venv instalado?)"; return 1; }
+    "$JUDGE_PYTHON" "$JUDGE_DIR/validar.py" "$@"
 }
 
 juiz_registrar() {
@@ -141,6 +145,13 @@ echo -e "=================================================\n"
 # ------------------------------------------------------------------------------
 # Gate G1 — Preflight (juiz)
 # ------------------------------------------------------------------------------
+log_info "Preparando venv do juiz (psycopg2, boto3)..."
+if ! ensure_judge_venv; then
+    log_error "Falha ao criar venv do juiz — instale python3-venv (apt install python3-venv)"
+    exit 1
+fi
+log_ok "Venv do juiz pronto"
+
 log_info "Preflight (Postgres db_empresas)..."
 if ! run_judge preflight --participante "$PARTICIPANTE"; then
     juiz_registrar "$PARTICIPANTE" "ERRO_PREFLIGHT_PG" "$REPO_URL"

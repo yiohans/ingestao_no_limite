@@ -26,14 +26,20 @@ Esse desafio testa sua habilidade em otimizar, manipular grandes volumes de dado
 
 ---
 
+
+
 ## 🏗️ Infraestrutura Fornecida
 
 A competição disponibiliza **duas ferramentas**. Você escolhe como usá-las:
 
-| Serviço | Papel | Obrigatório? |
-| :--- | :--- | :--- |
-| **PostgreSQL** (`db_empresas`) | Destino final da tabela de negócio para BI | **Sim** — tabela `{participante}_empresas` |
-| **S3-compatível** (MinIO no laboratório) | Object storage para staging, intermediários ou lake | **Não** — uso opcional a seu critério |
+
+| Serviço                                  | Papel                                               | Obrigatório?                               |
+| ---------------------------------------- | --------------------------------------------------- | ------------------------------------------ |
+| **PostgreSQL** (`db_empresas`)           | Destino final da tabela de negócio para BI          | **Sim** — tabela `{participante}_empresas` |
+| **S3-compatível** (MinIO no laboratório) | Object storage para staging, intermediários ou lake | **Não** — uso opcional a seu critério      |
+
+
+
 
 ### Entrega obrigatória (finish line)
 
@@ -45,6 +51,8 @@ Onde `{participante}` é exatamente o valor do campo `participante` no seu JSON 
 
 ---
 
+
+
 ## 🏆 Como Funciona?
 
 1. **Faça o Fork** deste repositório.
@@ -55,18 +63,22 @@ Onde `{participante}` é exatamente o valor do campo `participante` no seu JSON 
 
 ---
 
+
+
 ## 📚 Documentação Completa (`/docs`)
 
 Para não travar no contrato de dados ou ser desclassificado por estouro de memória, leia os guias abaixo antes de codar:
 
-* 📄 [**Regras de Negócio e Contrato de Dados**](./docs/REGRAS_E_CONTRATO.md) — Schema, filtros B2B, tipos de dados e encoding.
-* 🏛️ [**Arquitetura do Projeto e Workflow**](./docs/ARCHITECTURE.md) — Componentes, fluxos, gates e diagramas.
-* 💻 [**Stack do Servidor, Variáveis e Acesso na Avaliação**](./docs/STACK_E_LIMITES.md) — Como o PR conecta ao Postgres/S3, env vars, licença do MinIO e limites de hardware.
-* 🚦 [**Gates, Ranking e Juiz Automático**](./docs/GATES_E_RANKING.md) — Gates de aprovação, métricas, timeout, fila e SQL de validação.
-* 🐍 [**Judge (`/evaluator/judge`)**](./evaluator/judge/README.md) — `validar.py` + SQL executado pelo evaluator.
-* 📑 [**Checklist Obrigatório para Pull Request**](./docs/CHECKLIST_PR.md) — Requisitos para garantir que seu PR seja avaliado sem erros.
+- 📄 **[Regras de Negócio e Contrato de Dados](./docs/REGRAS_E_CONTRATO.md)** — Schema, filtros B2B, tipos de dados e encoding.
+- 🏛️ **[Arquitetura do Projeto e Workflow](./docs/ARCHITECTURE.md)** — Componentes, fluxos, gates e diagramas.
+- 💻 **[Stack do Servidor, Variáveis e Acesso na Avaliação](./docs/STACK_E_LIMITES.md)** — Como o PR conecta ao Postgres/S3, env vars, licença do MinIO e limites de hardware.
+- 🚦 **[Gates, Ranking e Juiz Automático](./docs/GATES_E_RANKING.md)** — Gates de aprovação, métricas, timeout, fila e SQL de validação.
+- 🐍 **[Judge (](./evaluator/judge/README.md)**`/evaluator/judge`**[)](./evaluator/judge/README.md)** — `validar.py` + SQL executado pelo evaluator.
+- 📑 **[Checklist Obrigatório para Pull Request](./docs/CHECKLIST_PR.md)** — Requisitos para garantir que seu PR seja avaliado sem erros.
 
 ---
+
+
 
 ## 🏎️ Critérios de Ranking
 
@@ -82,16 +94,22 @@ Detalhes completos em [Gates, Ranking e Juiz Automático](./docs/GATES_E_RANKING
 
 ---
 
+
+
 ## 🚀 Como Submeter sua Solução
 
 > **Dois repositórios, papéis diferentes**
 >
-> | Repositório | O que vai lá |
-> | :--- | :--- |
+>
+> | Repositório                     | O que vai lá                                                                  |
+> | ------------------------------- | ----------------------------------------------------------------------------- |
 > | **Seu repo público de solução** | `Dockerfile`, `src/`, `participante.json`, `requirements.txt` — só o pipeline |
-> | **Fork deste repo oficial** | Apenas `submissions/seu_usuario.json` apontando para o seu repo |
+> | **Fork deste repo oficial**     | Apenas `submissions/seu_usuario.json` apontando para o seu repo               |
+>
 >
 > **Não** abra PR com o código da ingestão dentro do repo oficial (`docs/`, `evaluator/`, etc.). O evaluator **clona o URL** do campo `repositorio` do JSON — ele precisa ser o **seu** repositório, enxuto e com o `Dockerfile` na raiz.
+
+
 
 ### Passo 1: Desenvolva sua solução
 
@@ -108,10 +126,10 @@ seu-repo-da-solucao/
     └── main.py             # entrypoint do pipeline (ou outro layout, ajustando o Dockerfile)
 ```
 
-4. Renomeie `participante.json.example` → `participante.json` (copiado de `submitter/`) e preencha com seu usuário e a URL do **seu** repo.
-5. Desenvolva na linguagem que desejar (Python, Rust, Go, C++, etc.) — o starter usa Python apenas como ponto de partida.
-6. Grave a tabela final em `db_empresas.public.{participante}_empresas` conforme o [contrato de dados](./docs/REGRAS_E_CONTRATO.md).
-7. Object storage S3 é opcional; se usar, limite-se ao prefixo `s3://marketing-leads/{participante}/`. Projete o código contra a **API S3 genérica** — o MinIO na avaliação é apenas alvo de laboratório (ver [licença e alternativas](./docs/STACK_E_LIMITES.md#-object-storage-s3-compatível-opcional)).
+1. Renomeie `participante.json.example` → `participante.json` (copiado de `submitter/`) e preencha com seu usuário e a URL do **seu** repo.
+2. Desenvolva na linguagem que desejar (Python, Rust, Go, C++, etc.) — o starter usa Python apenas como ponto de partida.
+3. Grave a tabela final em `db_empresas.public.{participante}_empresas` conforme o [contrato de dados](./docs/REGRAS_E_CONTRATO.md).
+4. Object storage S3 é opcional; se usar, limite-se ao prefixo `s3://marketing-leads/{participante}/`. Projete o código contra a **API S3 genérica** — o MinIO na avaliação é apenas alvo de laboratório (ver [licença e alternativas](./docs/STACK_E_LIMITES.md#-object-storage-s3-compatível-opcional)).
 
 O `participante.json` na raiz do **seu** repo é para organização e deve bater com o JSON que você enviará no fork (mesmos `participante` e `repositorio`). O evaluator **não** lê esse arquivo do seu repo — ele usa apenas o JSON em `submissions/` no fork.
 
@@ -128,9 +146,11 @@ O `participante.json` na raiz do **seu** repo é para organização e deve bater
 }
 ```
 
-4. Abra um Pull Request contra a `main` do repo oficial. O workflow clona o `repositorio` acima e roda o `Dockerfile` **de lá**.
+1. Abra um Pull Request contra a `main` do repo oficial. O workflow clona o `repositorio` acima e roda o `Dockerfile` **de lá**.
 
 ---
+
+
 
 ## 📁 Estrutura deste repositório
 
@@ -138,7 +158,7 @@ O `participante.json` na raiz do **seu** repo é para organização e deve bater
 ingestao_no_limite/
 ├── README.md
 ├── docs/                    # documentação pública
-├── submissions/             # metadados de submissão (único conteúdo do PR no fork)
+├── submissions/             # metadados de submissão (único conteúdo do PR no fork) 
 ├── submitter/               # starter — copie para a raiz do SEU repo de solução
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -153,23 +173,29 @@ ingestao_no_limite/
 
 ---
 
+
+
 ## ⏱️ Limites Operacionais
 
 Para manter a competição divertida e o servidor saudável:
 
-| Regra | Valor |
-| :--- | :--- |
-| RAM máxima do container | 2 GB |
-| CPUs máximas | 2 |
-| Timeout do pipeline | **~3h20m** (~48M linhas, 7+3 colunas) |
-| Build da imagem | **15 minutos** (separado; não conta no ranking) |
-| Avaliações simultâneas | 1 (fila única — nunca em paralelo) |
-| Intervalo entre avaliações | **15 minutos** de cooldown (fairness) |
-| PRs duplicados | apenas o commit mais recente é avaliado |
+
+| Regra                      | Valor                                           |
+| -------------------------- | ----------------------------------------------- |
+| RAM máxima do container    | 2 GB                                            |
+| CPUs máximas               | 2                                               |
+| Timeout do pipeline        | **~3h20m** (~48M linhas, 7+3 colunas)           |
+| Build da imagem            | **15 minutos** (separado; não conta no ranking) |
+| Avaliações simultâneas     | 1 (fila única — nunca em paralelo)              |
+| Intervalo entre avaliações | **15 minutos** de cooldown (fairness)           |
+| PRs duplicados             | apenas o commit mais recente é avaliado         |
+
 
 Soluções que excederem o timeout ou forem mortas por OOM recebem status de erro e **não entram no ranking**.
 
 ---
+
+
 
 ## ⚖️ Licença do object storage (MinIO)
 

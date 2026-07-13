@@ -31,7 +31,9 @@ FAIL=0
 SKIP=0
 SMOKE_ENV=""
 SMOKE_JSON=""
-VENV_DIR="$EVALUATOR_ROOT/.venv-smoke"
+
+# shellcheck disable=SC1091
+source "$EVALUATOR_ROOT/scripts/lib/ensure-judge-venv.sh"
 
 log()  { echo -e "[smoke] $*"; }
 pass() { PASS=$((PASS + 1)); log "✅ $*"; }
@@ -70,7 +72,8 @@ check_toolchain() {
 }
 
 check_python_deps() {
-    "$VENV_DIR/bin/python" - <<'PY'
+    resolve_judge_python
+    "$JUDGE_PYTHON" - <<'PY'
 import importlib
 for mod in ("psycopg2", "boto3"):
     importlib.import_module(mod)
@@ -78,16 +81,12 @@ PY
 }
 
 ensure_venv() {
-    if [[ ! -x "$VENV_DIR/bin/python" ]]; then
-        log "   criando venv em $VENV_DIR..."
-        python3 -m venv "$VENV_DIR"
-    fi
-    "$VENV_DIR/bin/pip" install -q -r "$JUDGE_DIR/requirements.txt"
+    ensure_judge_venv
 }
 
 python_judge() {
-    ensure_venv
-    JUIZ_CONFIG="$SMOKE_ENV" "$VENV_DIR/bin/python" "$JUDGE_DIR/validar.py" "$@"
+    resolve_judge_python
+    JUIZ_CONFIG="$SMOKE_ENV" "$JUDGE_PYTHON" "$JUDGE_DIR/validar.py" "$@"
 }
 
 check_repo_layout() {
@@ -219,7 +218,6 @@ EOF
             PR_NUMERO=0 \
             LOG_RUN_SLUG="${PARTICIPANTE}_smoke" \
             CONTAINER_APP_NAME="app_smoke_test" \
-            PATH="$VENV_DIR/bin:$PATH" \
             "$EVALUATOR_ROOT/evaluator.sh" "$SMOKE_JSON"
     )
 }
