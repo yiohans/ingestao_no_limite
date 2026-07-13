@@ -137,7 +137,7 @@ Seu pipeline deve ler os zips **diretamente** de `/data/`, sem depender de downl
 | `S3_ENDPOINT` | `http://localhost:9000` | `http://minio:9000` |
 | `/data/` | Você monta com `-v` | Montado automaticamente |
 | Limites CPU/RAM | Opcional | **2 CPU / 2 GB** (obrigatório) |
-| Timeout | Opcional | **~90 minutos** (calculado para o dataset oficial) |
+| Timeout | Opcional | **~3h20m** (calculado para ~48M linhas) |
 
 ### Exemplo: ler variáveis no código (Python)
 
@@ -189,7 +189,7 @@ Substitua `homelab_net` pela rede Docker onde `postgres_db` e `minio` estão rod
 | :--- | :--- |
 | Memória RAM | **2 GB** (sem swap — `--memory-swap=2g`) |
 | vCPUs | **2** |
-| Timeout | **~90 minutos** (5400 s — ver estimativa abaixo) |
+| Timeout | **~3h20m** (12000 s — ver estimativa abaixo) |
 | Build da imagem | **15 min** máx., 1 CPU / 1 GB RAM (não conta no tempo do pipeline) |
 
 Se o processo estourar RAM, o container morre com **exit code 137** (OOM) e a submissão é desclassificada.
@@ -204,44 +204,68 @@ O orquestrador (`avaliador.sh` + juiz) é leve: o build usa no máximo 1 CPU / 1
 | :--- | :--- |
 | Arquivos `.zip` em `/data/` | **5** |
 | Tamanho comprimido (total) | **~1 GB** |
-| Primeiro arquivo descompactado | **~2 GB** |
-| Total descompactado (estimativa) | **~8–10 GB** |
+| **Arquivo 1** — linhas | **~28 milhões** (~2 GB descompactado) |
+| **Arquivos 2–5** — linhas cada | **~5 milhões** cada (~20M linhas no total) |
+| **Total de linhas a processar** | **~48 milhões** |
+| Colunas no CSV de origem | **7** |
+| Colunas derivadas (regras de negócio) | **+3** (`porte_descricao`, filtros, etc.) |
+| Total descompactado (estimativa) | **~3,5 GB** |
 | Registros finais esperados | **500k – 15M** (após filtros B2B) |
+
+> O timeout é calculado sobre as **~48M linhas lidas e transformadas**, não só sobre o volume final na tabela.
 
 ---
 
 ## ⏱️ Estimativa do timeout do pipeline
 
-O limite de **45 minutos** era apertado para o dataset real. Com ~10 GB de CSV para processar em um Celeron (2 CPU / 2 GB RAM), soluções corretas porém não ultra-otimizadas podiam estourar o tempo.
+O gargalo real não é só o tamanho em GB — é **quantas linhas o pipeline precisa ler, transformar (7→10 colunas) e filtrar** antes de gravar no Postgres.
 
-### Fórmula
+### Fórmula (baseada em linhas)
 
 ```
-timeout = (DATA_UNCOMPRESSED_MB / THROUGHPUT_FLOOR_MBPS) × (1 + MARGIN%)
+total_linhas = DATA_LINES_FILE1 + (DATA_LINES_OTHERS_EACH × DATA_FILES_OTHERS)
+             = 28M + (5M × 4) = 48M
+
+timeout = (total_linhas / PIPELINE_ROWS_PER_SEC_FLOOR) × (1 + MARGIN%)
 ```
 
 Valores padrão no servidor (`juiz/config.env`):
 
 | Variável | Valor | Significado |
 | :--- | :--- | :--- |
-| `DATA_UNCOMPRESSED_MB` | `10240` | ~10 GB descompactados |
-| `PIPELINE_THROUGHPUT_FLOOR_MBPS` | `2.5` | MB/s mínimo sustentado no Celeron |
+| `DATA_LINES_FILE1` | `28000000` | Linhas do primeiro `.zip` |
+| `DATA_LINES_OTHERS_EACH` | `5000000` | Linhas de cada um dos outros 4 arquivos |
+| `DATA_FILES_OTHERS` | `4` | Quantidade de arquivos menores |
+| `PIPELINE_ROWS_PER_SEC_FLOOR` | `5000` | Linhas/s mínimo sustentado no Celeron (streaming) |
 | `PIPELINE_TIMEOUT_MARGIN_PCT` | `25` | Margem para carga no Postgres e variação |
-| `PIPELINE_TIMEOUT_SEC` | `5400` | Resultado: **90 minutos** |
+| `PIPELINE_TIMEOUT_SEC` | `12000` | Resultado: **3h20m** |
 
 ```
-(10240 / 2.5) × 1.25 = 5120 s ≈ 85 min → arredondado para 90 min
+(48.000.000 / 5000) × 1.25 = 12.000 s = 3h20m
 ```
+
+A estimativa por bytes (`DATA_UNCOMPRESSED_MB`) é usada como validação cruzada — o maior valor vence.
 
 ### Referência rápida
 
-| Timeout | Throughput médio exigido (~10 GB) |
+| Timeout | Throughput médio exigido (~48M linhas) |
 | :--- | :--- |
-| 45 min | ~3,8 MB/s — só soluções bem otimizadas |
-| 60 min | ~2,8 MB/s |
-| **90 min** | **~1,9 MB/s** — margem para pipelines corretos em streaming |
+| 90 min | ~8.900 linhas/s — só soluções bem otimizadas |
+| 2 h | ~6.700 linhas/s |
+| **3h20m** | **~4.400 linhas/s** — margem para pipelines corretos em streaming |
+| 4 h | ~3.300 linhas/s — muito folgado |
 
-Para recalcular: `source scripts/lib/estimate-timeout.sh && compute_pipeline_timeout`
+### O que consome tempo no pipeline
+
+| Etapa | Impacto |
+| :--- | :--- |
+| Leitura dos 5 `.zip` em streaming | I/O + descompressão |
+| Parse CSV (`;`, ISO-8859-1, aspas) | CPU por linha |
+| Derivação das 3 colunas de negócio | CPU por linha |
+| Filtros (`capital_social > 1000`, MEI/CPF) | CPU — descarta a maioria das 48M linhas |
+| Carga no Postgres (`COPY`/batch) | I/O de rede Docker + disco |
+
+Para recalcular: `source scripts/lib/estimate-timeout.sh && print_timeout_estimate`
 
 ### Servidor de avaliação (organizadores)
 

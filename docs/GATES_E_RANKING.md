@@ -13,7 +13,7 @@ PR aberto
   → avaliador.sh (orquestrador bash)
   → preflight via juiz/validar.py (Gate G1)
   → git clone + docker build (Gate G0)
-  → docker run com timeout ~90 min (Gate G2 — bash)
+  → docker run com timeout ~3h20m (Gate G2 — bash)
   → juiz/validar.py avaliar (Gates G2–G4 + métricas)
   → Gravação em ranking_ingestao + recalcular_posicoes_ranking()
   → Comentário no PR + site de ranking
@@ -58,7 +58,7 @@ Comando: `python3 juiz/validar.py preflight --participante <user>`
 | :--- | :--- | :--- |
 | Sem OOM | Exit code ≠ 137 | `ERRO_OOM` |
 | Sem crash | Exit code = 0 | `ERRO_EXECUCAO` |
-| Timeout | Wall time ≤ timeout configurado (~90 min) | `ERRO_TIMEOUT` |
+| Timeout | Wall time ≤ timeout configurado (~3h20m) | `ERRO_TIMEOUT` |
 | Tabela existe | Tabela `public.{participante}_empresas` criada | `ERRO_TABELA_AUSENTE` |
 
 ### Gate G3 — Sanidade de volume
@@ -152,7 +152,7 @@ DDL, função de ranking e views: `juiz/sql/schema/ranking_ingestao.sql`
 | `ERRO_BUILD_DOCKER` | Build da imagem falhou |
 | `ERRO_PREFLIGHT_*` | Falha no preflight |
 | `ERRO_OOM` | Container morto por falta de memória |
-| `ERRO_TIMEOUT` | Excedeu o timeout do pipeline (~90 min) |
+| `ERRO_TIMEOUT` | Excedeu o timeout do pipeline (~3h20m) |
 | `ERRO_EXECUCAO` | Container saiu com erro |
 | `ERRO_TABELA_AUSENTE` | Tabela final não encontrada |
 | `ERRO_TABELA_VAZIA` | Tabela sem registros |
@@ -184,7 +184,7 @@ Consultas prontas para rodar no servidor: `juiz/sql/site/consultas_ranking.sql`
 | Fila única | 1 container de avaliação por vez (nunca em paralelo — `concurrency: avaliador-ingestao`) |
 | Intervalo entre avaliações | Cooldown de 15 min após cada run (`COOLDOWN_SEC`) antes de liberar a fila |
 | PR duplicado | Cancela avaliação anterior do mesmo `participante` |
-| Timeout global | ~90 minutos no `docker run` (calculado para ~10 GB descompactados) |
+| Timeout global | ~3h20m no `docker run` (~48M linhas a processar) |
 | Build global | 15 minutos no `docker build` (1 CPU / 1 GB — não compete com o pipeline) |
 | Comentário no PR | Status, tempo, storage, gates e posição |
 | Melhor resultado | Cada execução gera um registro; o site usa a melhor classificada |

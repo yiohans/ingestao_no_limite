@@ -229,7 +229,7 @@ sequenceDiagram
     AV->>DK: docker build (timeout 15 min)
     DK-->>AV: imagem submissao_user
 
-    AV->>DK: docker run (2 CPU, 2 GB, timeout ~90 min)
+    AV->>DK: docker run (2 CPU, 2 GB, timeout ~3h20m)
     Note over DK: Pipeline do participante
     DK->>DK: Lê /data/*.zip
     DK->>PG: Grava public.user_empresas
@@ -379,7 +379,11 @@ flowchart LR
 | Arquivos `.zip` | 5 |
 | Tamanho comprimido | ~1 GB |
 | Primeiro arquivo descompactado | ~2 GB |
-| Total descompactado | ~8–10 GB |
+| Arquivo 1 — linhas | **~28 milhões** (~2 GB) |
+| Arquivos 2–5 — linhas cada | **~5 milhões** cada |
+| **Total de linhas a processar** | **~48 milhões** |
+| Colunas origem + derivadas | **7 + 3** (regras de negócio) |
+| Total descompactado | **~3,5 GB** |
 | Registros finais (após filtros) | 500k – 15M |
 
 ---
@@ -432,7 +436,7 @@ graph TB
             P_CPU["2 CPU"]
             P_RAM["2 GB RAM"]
             P_SWAP["sem swap<br/>memory-swap=2g"]
-            P_TIME["timeout ~90 min"]
+            P_TIME["timeout ~3h20m<br/>~48M linhas"]
         end
 
         subgraph Servicos["Sempre ativos"]
@@ -451,7 +455,7 @@ graph TB
     style Orquestrador fill:#e3f2fd
 ```
 
-O timeout do pipeline é calculado em `scripts/lib/estimate-timeout.sh` com base no volume descompactado estimado (~10 GB). Detalhes em [STACK_E_LIMITES.md](./STACK_E_LIMITES.md).
+O timeout do pipeline é calculado em `scripts/lib/estimate-timeout.sh` com base em **~48M linhas** a processar (28M + 4×5M), transformação 7→10 colunas e throughput mínimo de 5.000 linhas/s no Celeron. Resultado: **~3h20m (12000 s)**. Detalhes em [STACK_E_LIMITES.md](./STACK_E_LIMITES.md).
 
 ---
 
@@ -571,5 +575,5 @@ Dados gravados em `db_ingestao.public.ranking_ingestao`. Views para o site: `v_l
 | Onde o participante grava dados? | `db_empresas.public.{participante}_empresas` |
 | Quantas avaliações em paralelo? | **1** (fila única) |
 | Intervalo entre submissões? | **15 min** de cooldown |
-| Limites do container? | 2 CPU, 2 GB RAM, ~90 min timeout |
+| Limites do container? | 2 CPU, 2 GB RAM, ~3h20m timeout (~48M linhas) |
 | O smoke test roda em cada PR? | **Não** — só preflight + pipeline real |

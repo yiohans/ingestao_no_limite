@@ -24,4 +24,5 @@ __pycache__/
 .coverage.*.*.*.*.*
 .coverage.*.*.*.*.*.*
 
-# Logs de execução (stdout/stderr por run)
+
+scripts/lib/estimate-timeout.sh

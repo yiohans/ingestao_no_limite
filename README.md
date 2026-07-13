@@ -115,7 +115,7 @@ Para manter a competição divertida e o servidor saudável:
 | :--- | :--- |
 | RAM máxima do container | 2 GB |
 | CPUs máximas | 2 |
-| Timeout do pipeline | **~90 minutos** (dataset ~10 GB descompactados) |
+| Timeout do pipeline | **~3h20m** (~48M linhas, 7+3 colunas) |
 | Build da imagem | **15 minutos** (separado; não conta no ranking) |
 | Avaliações simultâneas | 1 (fila única — nunca em paralelo) |
 | Intervalo entre avaliações | **15 minutos** de cooldown (fairness) |

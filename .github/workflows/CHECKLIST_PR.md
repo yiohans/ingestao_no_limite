@@ -8,7 +8,7 @@ Antes de abrir o Pull Request para avaliação, verifique todos os pontos abaixo
 - [ ] O `Dockerfile` está na raiz do repositório e instala todas as dependências.
 - [ ] O container inicia e executa o pipeline automaticamente (`CMD`/`ENTRYPOINT`).
 - [ ] O container finaliza dentro do limite de **2 GB de RAM** (sem OOM).
-- [ ] O pipeline completa em menos de **~90 minutos** (dataset oficial ~10 GB descompactados).
+- [ ] O pipeline completa em menos de **~3h20m** (dataset oficial ~48M linhas).
 
 ## Contrato de dados
 
