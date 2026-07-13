@@ -84,7 +84,7 @@ jobs:
         if: always()
         run: |
           set -eo pipefail
-          COOLDOWN="${COOLDOWN_SEC:-900}"
+          COOLDOWN="${COOLDOWN_SEC:-180}"
           echo "================================================="
           echo "--> Aguardando ${COOLDOWN}s antes de liberar a fila para a próxima submissão."
           echo "================================================="
