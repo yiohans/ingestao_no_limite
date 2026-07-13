@@ -60,6 +60,7 @@ Onde `{participante}` é exatamente o valor do campo `participante` no seu JSON 
 Para não travar no contrato de dados ou ser desclassificado por estouro de memória, leia os guias abaixo antes de codar:
 
 * 📄 [**Regras de Negócio e Contrato de Dados**](./docs/REGRAS_E_CONTRATO.md) — Schema, filtros B2B, tipos de dados e encoding.
+* 🏛️ [**Arquitetura do Projeto e Workflow**](./docs/ARCHITECTURE.md) — Componentes, fluxos, gates e diagramas.
 * 💻 [**Stack do Servidor, Variáveis e Acesso na Avaliação**](./docs/STACK_E_LIMITES.md) — Como o PR conecta ao Postgres/MinIO, env vars e limites de hardware.
 * 🚦 [**Gates, Ranking e Juiz Automático**](./docs/GATES_E_RANKING.md) — Gates de aprovação, métricas, timeout, fila e SQL de validação.
 * 🐍 [**Juiz (`/juiz`)**](./juiz/README.md) — `validar.py` + SQL compartilhado executado pelo avaliador.
