@@ -26,10 +26,9 @@ import psycopg2.extras
 ROOT = Path(__file__).resolve().parent
 
 
-def load_env_file() -> None:
-    config_path = Path(os.getenv("JUIZ_CONFIG", str(ROOT / "config.env")))
-    if not config_path.exists():
-        return
+def _apply_env_file(config_path: Path) -> bool:
+    if not config_path.is_file():
+        return False
     for line in config_path.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
@@ -37,6 +36,19 @@ def load_env_file() -> None:
         key, _, value = line.partition("=")
         value = value.strip().strip("'").strip('"')
         os.environ.setdefault(key.strip(), value)
+    return True
+
+
+def load_env_file() -> None:
+    """Carrega JUIZ_CONFIG (servidor) e, se SMTP faltar, tenta judge/config.env local."""
+    primary = Path(os.getenv("JUIZ_CONFIG", str(ROOT / "config.env")))
+    _apply_env_file(primary)
+
+    smtp_ready = all(os.getenv(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"))
+    local = ROOT / "config.env"
+    if not smtp_ready and local.resolve() != primary.resolve():
+        if _apply_env_file(local):
+            print(f"SMTP: complementado a partir de {local}", file=sys.stderr)
 
 
 def fetch_ultima_avaliacao(participante: str) -> dict[str, Any] | None:
@@ -161,8 +173,11 @@ def send_email(msg: EmailMessage) -> None:
     use_ssl = os.getenv("SMTP_USE_SSL", "true").strip().lower() in ("1", "true", "yes")
 
     if not host or not user or not password:
+        cfg = os.getenv("JUIZ_CONFIG", str(ROOT / "config.env"))
         raise RuntimeError(
-            "SMTP_HOST, SMTP_USER e SMTP_PASSWORD devem estar definidos em config.env"
+            "SMTP_HOST, SMTP_USER e SMTP_PASSWORD devem estar definidos no "
+            f"arquivo apontado por JUIZ_CONFIG ({cfg}). "
+            "No servidor self-hosted, normalmente: /opt/ingestao-juiz/config.env"
         )
 
     context = ssl.create_default_context()
