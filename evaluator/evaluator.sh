@@ -211,11 +211,14 @@ docker rm -f "$CONTAINER_APP_NAME" &>/dev/null || true
 PG_CONTAINER_HOST="${PG_CONTAINER_HOST:-${PG_CONTAINER:-postgres_db}}"
 S3_CONTAINER_ENDPOINT="${S3_CONTAINER_ENDPOINT:-http://minio:9000}"
 
+PIPELINE_CPU_LIMIT="${PIPELINE_CPU_LIMIT:-2.0}"
+PIPELINE_MEM_LIMIT="${PIPELINE_MEM_LIMIT:-1g}"
+
 DOCKER_ARGS=(
     --name "$CONTAINER_APP_NAME"
-    --cpus="2.0"
-    --memory="2g"
-    --memory-swap="2g"
+    --cpus="$PIPELINE_CPU_LIMIT"
+    --memory="$PIPELINE_MEM_LIMIT"
+    --memory-swap="$PIPELINE_MEM_LIMIT"
     --pids-limit=512
     -e "PARTICIPANTE=$PARTICIPANTE"
     -e "PG_TABLE=$PG_TABLE"
@@ -239,7 +242,7 @@ START_TIME=$(date +%s.%N)
 EXIT_CODE=0
 TIMED_OUT=false
 
-log_info "Executando pipeline (timeout $(format_timeout_human "$PIPELINE_TIMEOUT_SEC"), 2 CPU, 2 GB RAM, sem swap)..."
+log_info "Executando pipeline (timeout $(format_timeout_human "$PIPELINE_TIMEOUT_SEC"), ${PIPELINE_CPU_LIMIT} CPU, ${PIPELINE_MEM_LIMIT} RAM, sem swap)..."
 
 track_peak_ram "$CONTAINER_APP_NAME" "$PEAK_RAM_FILE" &
 TRACKER_PID=$!

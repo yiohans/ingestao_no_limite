@@ -14,7 +14,7 @@ O detalhe importante: o único equipamento disponível é um notebook antigo, qu
 
 ## 🎯 Objetivo da Competição
 
-Criar o pipeline de ingestão e tratamento dos dados empresariais **mais eficiente possível**, operando sob rigorosas restrições de hardware (máximo de **2 GB de RAM** e **2 CPUs**).
+Criar o pipeline de ingestão e tratamento dos dados empresariais **mais eficiente possível**, operando sob rigorosas restrições de hardware (máximo de **1 GB de RAM**, **2 CPUs** e **60 min** para processar ~68,6M linhas).
 
 Ao final, seu trabalho deve gerar uma **tabela padronizada e pronta para BI** no PostgreSQL. Você decide a arquitetura: pode usar **object storage compatível com S3** como apoio (staging, Parquet, Delta Lake, Iceberg) ou ir direto ao Postgres — o que importa é **passar nos gates** e **vencer no ranking**.
 
@@ -59,7 +59,7 @@ Onde `{participante}` é exatamente o valor do campo `participante` no seu JSON 
 2. **Desenvolva seu código** de ingestão em um **repositório público seu** (`Dockerfile` na raiz + `src/`). No fork oficial, envie apenas `submissions/seu_usuario.json`.
 3. **Abra um Pull Request** contra a branch `main` com seu arquivo em `submissions/seu_usuario.json` e **faça merge** após revisão.
 4. **Após o merge**, o servidor local (**Hardware Celeron**) enfileira a avaliação, executa **preflight**, roda o pipeline no Docker isolado e coleta métricas.
-5. Se passar em **todos os gates**, seu tempo, storage e pico de RAM entram no **Ranking Oficial**.
+5. Se passar em **todos os gates**, seu **score composto** (tempo + RAM + storage) entra no **Ranking Oficial**.
 
 > A avaliação **não** roda enquanto o PR está aberto — só depois que o JSON entra na `main`. O organizador pode reavaliar manualmente via **Actions → Run workflow** (sem novo PR).
 
@@ -84,15 +84,19 @@ Para não travar no contrato de dados ou ser desclassificado por estouro de mem�
 
 ## 🏎️ Critérios de Ranking
 
-Entre soluções **classificadas** (todos os gates aprovados), a ordem é:
+Entre soluções **classificadas** (todos os gates aprovados), a ordem é dada por um **score composto** (menor vence) — não é mais só velocidade:
 
-1. **Menor tempo de execução** (wall time, em segundos)
-2. **Desempate:** menor espaço total consumido em storage (MB) — Postgres + object storage S3 do participante (se usado)
-3. **Segundo desempate:** menor pico de RAM (MB)
+```
+score = 0.60·(tempo/3600) + 0.25·(peak_ram/1024) + 0.15·(storage_total/4096)
+```
+
+- **60% tempo**, **25% RAM**, **15% storage** — recompensa eficiência holística.
+- Ser mais rápido **não basta** se você desperdiça RAM (o recurso escasso: 1 GB) ou escreve uma tabela inchada.
+- Desempates (se o score empatar): tempo → storage → RAM → ordem de chegada.
 
 > *"Engenharia de dados de verdade não é sobre contratar o maior cluster da nuvem, é sobre escrever código otimizado."*
 
-Detalhes completos em [Gates, Ranking e Juiz Automático](./docs/GATES_E_RANKING.md).
+Detalhes completos e exemplos em [Gates, Ranking e Juiz Automático](./docs/GATES_E_RANKING.md).
 
 ---
 
@@ -186,9 +190,9 @@ Para manter a competição divertida e o servidor saudável:
 
 | Regra                      | Valor                                           |
 | -------------------------- | ----------------------------------------------- |
-| RAM máxima do container    | 2 GB                                            |
+| RAM máxima do container    | **1 GB** (sem swap)                             |
 | CPUs máximas               | 2                                               |
-| Timeout do pipeline        | **~3h20m** (~48M linhas, 7+3 colunas)           |
+| Timeout do pipeline        | **60 min** (hard cap; ~68,6M linhas, 7+3 colunas → ~19k linhas/s) |
 | Build da imagem            | **15 minutos** (separado; não conta no ranking) |
 | Avaliações simultâneas     | 1 (fila única — nunca em paralelo)              |
 | Intervalo entre avaliações | **15 minutos** de cooldown (fairness)           |

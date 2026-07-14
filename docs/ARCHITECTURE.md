@@ -43,7 +43,7 @@ flowchart TB
     end
 
     subgraph Participante["Container do participante (efêmero)"]
-        Pipeline["Pipeline de ingestão<br/>2 CPU / 2 GB RAM"]
+        Pipeline["Pipeline de ingestão<br/>2 CPU / 1 GB RAM"]
     end
 
     RepoSolucao["Repositório da solução<br/>(público)"]
@@ -131,7 +131,7 @@ Responsabilidades:
 - Chamar preflight do juiz (Gate G1)
 - `git clone --depth 1` do repositório do participante
 - `docker build` com timeout de 15 min
-- `docker run` com 2 CPU / 2 GB RAM (sem swap)
+- `docker run` com 2 CPU / 1 GB RAM (sem swap)
 - Medir wall time e pico de RAM via `docker stats`
 - Limpar container e imagem após execução
 - Delegar gates G2–G4 e ranking ao juiz
@@ -232,7 +232,7 @@ sequenceDiagram
     AV->>DK: docker build (timeout 15 min)
     DK-->>AV: imagem submissao_user
 
-    AV->>DK: docker run (2 CPU, 2 GB, timeout ~3h20m)
+    AV->>DK: docker run (2 CPU, 1 GB, timeout 60 min)
     Note over DK: Pipeline do participante
     DK->>DK: Lê /data/*.zip
     DK->>PG: Grava public.user_empresas
@@ -241,7 +241,7 @@ sequenceDiagram
 
     AV->>AV: Mede pico RAM, limpa container/imagem
     AV->>JZ: avaliar --tempo --exit-code --peak-ram-mb
-    JZ->>PG: Gate execução, volume, DQ-01..08
+    JZ->>PG: Gate execução, volume, DQ-01..10
     JZ->>MN: Métrica storage S3 (prefixo participante)
     JZ->>PG: INSERT ranking_ingestao
     JZ-->>AV: CLASSIFICADO ou ERRO_*
@@ -303,7 +303,7 @@ flowchart TD
     G2D -->|sim| G3
 
     subgraph G3["Gate G3 — Volume"]
-        G3A{Registros na faixa<br/>500k – 15M?}
+        G3A{Registros na faixa<br/>24,9M – 25,15M?}
     end
 
     G3A -->|0| E10[ERRO_TABELA_VAZIA]
@@ -312,7 +312,7 @@ flowchart TD
     G3A -->|ok| G4
 
     subgraph G4["Gate G4 — Data Quality"]
-        G4A{DQ-01..08 = 0 erros?}
+        G4A{DQ-01..10 = 0 erros?}
     end
 
     G4A -->|não| E13[ERRO_DATA_QUALITY]
@@ -334,11 +334,8 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph Origem
-        Z1["zip 1 (~200 MB)"]
-        Z2["zip 2"]
-        Z3["zip 3"]
-        Z4["zip 4"]
-        Z5["zip 5"]
+        Z0["Empresas0.zip (~511 MB)<br/>28,2M linhas"]
+        Z1["Empresas1..9.zip<br/>~4,5M linhas cada"]
     end
 
     subgraph Container
@@ -356,7 +353,7 @@ flowchart LR
     end
 
     subgraph Validacao
-        DQ["8 gates DQ"]
+        DQ["10 gates DQ"]
         VOL["Sanidade de volume"]
         MET["Métricas storage + tempo + RAM"]
     end
@@ -365,7 +362,7 @@ flowchart LR
         RK["db_ingestao.ranking_ingestao"]
     end
 
-    Z1 & Z2 & Z3 & Z4 & Z5 --> READ
+    Z0 & Z1 --> READ
     READ --> TRANS --> LOAD
     LOAD --> TBL
     TRANS -.-> S3P
@@ -375,19 +372,18 @@ flowchart LR
     DQ & VOL & MET --> RK
 ```
 
-**Perfil do dataset oficial:**
+**Perfil do dataset oficial (medido — ver [PERFIL_DATASET.md](./PERFIL_DATASET.md)):**
 
-| Métrica | Valor estimado |
+| Métrica | Valor real |
 | :--- | :--- |
-| Arquivos `.zip` | 5 |
-| Tamanho comprimido | ~1 GB |
-| Primeiro arquivo descompactado | ~2 GB |
-| Arquivo 1 — linhas | **~28 milhões** (~2 GB) |
-| Arquivos 2–5 — linhas cada | **~5 milhões** cada |
-| **Total de linhas a processar** | **~48 milhões** |
+| Arquivos `.zip` | 10 |
+| Tamanho comprimido | ~1,26 GB |
+| Total descompactado | **~5,0 GB** (compressão 4,0x) |
+| Arquivo 1 (`Empresas0.zip`) — linhas | **28.175.408** (~2,1 GB) |
+| Arquivos 2–10 — linhas cada | **4.494.860** cada |
+| **Total de linhas a processar** | **68.629.148** |
 | Colunas origem + derivadas | **7 + 3** (regras de negócio) |
-| Total descompactado | **~3,5 GB** |
-| Registros finais (após filtros) | 500k – 15M |
+| Registros finais (após filtros) | **25.031.418** (faixa apertada 24,9M – 25,15M) |
 
 ---
 
@@ -437,9 +433,9 @@ graph TB
 
         subgraph Pipeline["docker run (participante)"]
             P_CPU["2 CPU"]
-            P_RAM["2 GB RAM"]
-            P_SWAP["sem swap<br/>memory-swap=2g"]
-            P_TIME["timeout ~3h20m<br/>~48M linhas"]
+            P_RAM["1 GB RAM"]
+            P_SWAP["sem swap<br/>memory-swap=1g"]
+            P_TIME["timeout 60 min<br/>~68,6M linhas"]
         end
 
         subgraph Servicos["Sempre ativos"]
@@ -458,7 +454,7 @@ graph TB
     style Orquestrador fill:#e3f2fd
 ```
 
-O timeout do pipeline é calculado em `evaluator/scripts/lib/estimate-timeout.sh` com base em **~48M linhas** a processar (28M + 4×5M), transformação 7→10 colunas e throughput mínimo de 5.000 linhas/s no Celeron. Resultado: **~3h20m (12000 s)**. Detalhes em [STACK_E_LIMITES.md](./STACK_E_LIMITES.md).
+O timeout do pipeline é um **orçamento fixo de 60 min (3600 s)** — restritivo por design. Com **68.629.148 linhas** a processar (28,2M + 9×4,5M), isso exige **~19.000 linhas/s sustentadas** em 2 CPU / 1 GB RAM. O cálculo está em `evaluator/scripts/lib/estimate-timeout.sh`. Detalhes em [STACK_E_LIMITES.md](./STACK_E_LIMITES.md).
 
 ---
 
@@ -559,18 +555,18 @@ Em cada submissão real, apenas o **preflight** do juiz roda antes do build — 
 
 ## 13. Ranking
 
-Soluções **classificadas** entram no ranking com base em:
+Soluções **classificadas** entram no ranking pelo **score composto** (menor vence) — não é mais só velocidade:
 
 ```mermaid
 flowchart LR
-    A["1º — Menor tempo_segundos<br/>(wall time do docker run)"]
-    B["2º — Menor storage total<br/>(Postgres + S3, se usado)"]
-    C["3º — Menor peak_ram_mb"]
+    S["SCORE = 0.60·(tempo/3600)<br/>+ 0.25·(RAM/1024)<br/>+ 0.15·(storage/4096)"]
+    A["1º — Menor score"]
+    B["Desempate — tempo, storage, RAM"]
 
-    A --> B --> C
+    S --> A --> B
 ```
 
-Dados gravados em `db_ingestao.public.ranking_ingestao`. Views para o site: `v_leaderboard`, `v_melhor_por_participante`, `v_ultima_avaliacao`.
+Recompensa eficiência holística (tempo + RAM + storage). Dados gravados em `db_ingestao.public.ranking_ingestao` (coluna `score`). Detalhes e pesos em [GATES_E_RANKING.md](./GATES_E_RANKING.md). Views para o site: `v_leaderboard`, `v_melhor_por_participante`, `v_ultima_avaliacao`.
 
 ---
 
@@ -584,5 +580,5 @@ Dados gravados em `db_ingestao.public.ranking_ingestao`. Views para o site: `v_l
 | Onde o participante grava dados? | `db_empresas.public.{participante}_empresas` |
 | Quantas avaliações em paralelo? | **1** (fila única) |
 | Intervalo entre submissões? | **15 min** de cooldown |
-| Limites do container? | 2 CPU, 2 GB RAM, ~3h20m timeout (~48M linhas) |
+| Limites do container? | 2 CPU, 1 GB RAM, 60 min timeout (~68,6M linhas) |
 | O smoke test roda em cada submissão? | **Não** — só preflight + pipeline real |

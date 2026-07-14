@@ -27,3 +27,12 @@ __pycache__/
 .coverage.*.*.*.*
 .coverage.*.*.*.*.*
 .coverage.*.*.*.*.*.*
+
+website/
+
+docs/PERFIL_DATASET.md
+docs/mudancas.md
+
+evaluator/scripts/profile-dataset.sh
+evaluator/scripts/profile_empresas.py
+evaluator/scripts/lib/estimate-timeout.sh

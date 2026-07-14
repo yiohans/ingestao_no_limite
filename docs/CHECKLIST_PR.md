@@ -7,18 +7,22 @@ Antes de abrir o Pull Request e fazer **merge** na `main` (o que dispara a avali
 - [ ] O código lê os arquivos `.zip` em `/data/` sem extração manual prévia no SO.
 - [ ] O `Dockerfile` está na raiz do repositório e instala todas as dependências.
 - [ ] O container inicia e executa o pipeline automaticamente (`CMD`/`ENTRYPOINT`).
-- [ ] O container finaliza dentro do limite de **2 GB de RAM** (sem OOM).
-- [ ] O pipeline completa em menos de **~3h20m** (dataset oficial ~48M linhas).
+- [ ] O container finaliza dentro do limite de **1 GB de RAM** (sem OOM — dataset ~5 GB não cabe em memória, exige streaming).
+- [ ] O pipeline completa em menos de **60 min** (dataset oficial: 10 zips, ~68,6M linhas → exige ~19k linhas/s).
 
 ## Contrato de dados
 
 - [ ] A tabela final existe em `db_empresas.public.{participante}_empresas`.
 - [ ] O nome da tabela usa exatamente o campo `participante` do JSON + sufixo `_empresas`.
-- [ ] Encoding convertido de `ISO-8859-1` para `UTF-8`.
+- [ ] Encoding convertido de `ISO-8859-1` para `UTF-8` (sem `�`/U+FFFD nem lixo — **DQ-10**).
 - [ ] `capital_social` com vírgula BR convertida para ponto decimal.
 - [ ] Filtro `capital_social > 1000.00` aplicado.
 - [ ] Registros com CPF no final da `razao_social` removidos.
-- [ ] Schema e tipos conforme [REGRAS_E_CONTRATO.md](./REGRAS_E_CONTRATO.md).
+- [ ] `cnpj_basico` **único** na tabela final (sem carga dupla — **DQ-09**).
+- [ ] `porte_descricao` **exatamente** consistente com `porte_codigo` linha a linha (**DQ-07**).
+- [ ] `razao_social` não vazia; `natureza_juridica` com 4 dígitos numéricos (**DQ-03/DQ-10**).
+- [ ] Total final na faixa apertada **24,9M – 25,15M** (esperado exato: 25.031.418).
+- [ ] Schema e tipos conforme [REGRAS_E_CONTRATO.md](./REGRAS_E_CONTRATO.md) — **10 gates DQ** devem retornar 0.
 
 ## Infraestrutura e variáveis de ambiente
 

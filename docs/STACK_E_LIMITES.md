@@ -11,7 +11,7 @@ Esta competição simula um cenário real: a infraestrutura é fornecida, mas **
 1. Você abre um PR no fork com `submissions/seu_usuario.json` e **faz merge** na `main` do repo oficial.
 2. O GitHub Action dispara `evaluator/evaluator.sh` no servidor (**Hardware Celeron**).
 3. O avaliador clona o **seu repositório** (campo `repositorio` do JSON).
-4. Faz `docker build` da **sua imagem** e executa com limites de 2 CPU / 2 GB RAM.
+4. Faz `docker build` da **sua imagem** e executa com limites **restritivos** de 2 CPU / **1 GB RAM**.
 5. Seu container entra na **mesma rede Docker** do Postgres e do object storage S3 (MinIO no laboratório).
 6. Os dados brutos ficam montados em **`/data/`** (somente leitura).
 7. Ao terminar, o **juiz** valida a tabela `public.{participante}_empresas` e grava o ranking.
@@ -136,8 +136,8 @@ Seu pipeline deve ler os zips **diretamente** de `/data/`, sem depender de downl
 | `PG_HOST` | `localhost` | `postgres_db` |
 | `S3_ENDPOINT` | `http://localhost:9000` | `http://minio:9000` |
 | `/data/` | Você monta com `-v` | Montado automaticamente |
-| Limites CPU/RAM | Opcional | **2 CPU / 2 GB** (obrigatório) |
-| Timeout | Opcional | **~3h20m** (calculado para ~48M linhas) |
+| Limites CPU/RAM | Opcional | **2 CPU / 1 GB** (obrigatório) |
+| Timeout | Opcional | **60 min** (hard cap para ~68,6M linhas) |
 
 ### Exemplo: ler variáveis no código (Python)
 
@@ -162,7 +162,7 @@ s3_prefix = f"{PARTICIPANTE}/"
 
 ```bash
 docker run --rm \
-  --cpus="2.0" --memory="2g" \
+  --cpus="2.0" --memory="1g" --memory-swap="1g" \
   --network homelab_net \
   -v /caminho/para/zips:/data:ro \
   -e PARTICIPANTE=renan_python \
@@ -183,87 +183,91 @@ Substitua `homelab_net` pela rede Docker onde `postgres_db` e `minio` estão rod
 
 ---
 
-## ⚙️ Limites de hardware
+## ⚙️ Limites de hardware (restritivos por design)
 
-| Recurso | Limite |
-| :--- | :--- |
-| Memória RAM | **2 GB** (sem swap — `--memory-swap=2g`) |
-| vCPUs | **2** |
-| Timeout | **~3h20m** (12000 s — ver estimativa abaixo) |
-| Build da imagem | **15 min** máx., 1 CPU / 1 GB RAM (não conta no tempo do pipeline) |
+Esta é uma competição **"no limite"**: os recursos são **propositalmente apertados** para que a arquitetura do pipeline importe mais que a força bruta. Não há folga sobrando — cabe a você fazer o **cálculo de engenharia** (ver abaixo).
 
-Se o processo estourar RAM, o container morre com **exit code 137** (OOM) e a submissão é desclassificada.
+| Recurso | Limite | Antes |
+| :--- | :--- | :--- |
+| Memória RAM | **1 GB** (sem swap — `--memory-swap=1g`) | ~~2 GB~~ |
+| vCPUs | **2** | 2 |
+| Timeout | **60 min** (3600 s — hard cap, ver estimativa abaixo) | ~~~3h20m~~ |
+| Build da imagem | **15 min** máx., 1 CPU / 1 GB RAM (não conta no tempo do pipeline) | igual |
 
-O orquestrador (`evaluator/evaluator.sh` + juiz) é leve: o build usa no máximo 1 CPU / 1 GB; o pipeline do participante recebe os 2 CPU / 2 GB completos.
+> **1 GB de RAM para ~5 GB de dados descompactados.** É fisicamente impossível carregar o dataset em memória — o pipeline **obriga** streaming/batch. Se estourar RAM, o container morre com **exit code 137** (OOM) e a submissão é desclassificada.
+
+O orquestrador (`evaluator/evaluator.sh` + juiz) é leve: o build usa no máximo 1 CPU / 1 GB; o pipeline do participante recebe 2 CPU / **1 GB** completos.
+
+Os limites são configuráveis no servidor via `PIPELINE_CPU_LIMIT`, `PIPELINE_MEM_LIMIT` e `PIPELINE_TIMEOUT_SEC` em `evaluator/judge/config.env`.
 
 ---
 
-## 📦 Perfil do dataset oficial
+## 📦 Perfil do dataset oficial (medido)
+
+Números **reais**, medidos por `evaluator/scripts/profile_empresas.py`. Perfil completo (limpeza, distribuições, por arquivo) em [`PERFIL_DATASET.md`](./PERFIL_DATASET.md).
 
 | Item | Valor |
 | :--- | :--- |
-| Arquivos `.zip` em `/data/` | **5** |
-| Tamanho comprimido (total) | **~1 GB** |
-| **Arquivo 1** — linhas | **~28 milhões** (~2 GB descompactado) |
-| **Arquivos 2–5** — linhas cada | **~5 milhões** cada (~20M linhas no total) |
-| **Total de linhas a processar** | **~48 milhões** |
+| Arquivos `.zip` em `/data/` | **10** |
+| Tamanho comprimido (total) | **~1,26 GB** |
+| Total descompactado (CSV) | **~5,0 GB** (razão de compressão **4,0x**) |
+| **Arquivo 1** (`Empresas0.zip`) — linhas | **28.175.408** (~2,1 GB descompactado) |
+| **Arquivos 2–10** — linhas cada | **4.494.860** cada (~40,5M linhas no total) |
+| **Total de linhas a processar** | **68.629.148** |
 | Colunas no CSV de origem | **7** |
 | Colunas derivadas (regras de negócio) | **+3** (`porte_descricao`, filtros, etc.) |
-| Total descompactado (estimativa) | **~3,5 GB** |
-| Registros finais esperados | **500k – 15M** (após filtros B2B) |
+| Registros finais esperados | **25.031.418** (após filtros B2B — faixa apertada `VOLUME_MIN`/`VOLUME_MAX` = 24,9M / 25,15M) |
 
-> O timeout é calculado sobre as **~48M linhas lidas e transformadas**, não só sobre o volume final na tabela.
+> O orçamento de tempo incide sobre as **68,6M linhas lidas e transformadas**, não só sobre os ~25M da tabela final. Ler ≠ gravar: você lê 68,6M e grava ~25M.
 
 ---
 
-## ⏱️ Estimativa do timeout do pipeline
+## ⏱️ Orçamento de tempo e o cálculo de engenharia
 
-O gargalo real não é só o tamanho em GB — é **quantas linhas o pipeline precisa ler, transformar (7→10 colunas) e filtrar** antes de gravar no Postgres.
+O timeout **não é dimensionado com folga**. É um **orçamento fixo de 60 min** (hard cap). O gargalo real não é o tamanho em GB — é **quantas linhas o pipeline precisa ler, transformar (7→10 colunas) e filtrar** dentro de 1 GB de RAM antes de gravar no Postgres.
 
-### Fórmula (baseada em linhas)
+### O cálculo que você precisa fazer antes de submeter
 
 ```
-total_linhas = DATA_LINES_FILE1 + (DATA_LINES_OTHERS_EACH × DATA_FILES_OTHERS)
-             = 28M + (5M × 4) = 48M
-
-timeout = (total_linhas / PIPELINE_ROWS_PER_SEC_FLOOR) × (1 + MARGIN%)
+throughput_exigido = total_linhas / orçamento
+                   = 68.629.148 / 3600 s
+                   ≈ 19.000 linhas/s sustentadas (ler + transformar + filtrar + gravar)
 ```
 
-Valores padrão no servidor (`evaluator/judge/config.env`):
+Se o seu design não sustenta **~19.000 linhas/s de ponta a ponta** em 2 CPU / 1 GB RAM, ele **não termina no prazo** — e é reprovado por `ERRO_TIMEOUT`. Esse é o incentivo: medir antes, não depois.
+
+Valores reais no servidor (`evaluator/judge/config.env`):
 
 | Variável | Valor | Significado |
 | :--- | :--- | :--- |
-| `DATA_LINES_FILE1` | `28000000` | Linhas do primeiro `.zip` |
-| `DATA_LINES_OTHERS_EACH` | `5000000` | Linhas de cada um dos outros 4 arquivos |
-| `DATA_FILES_OTHERS` | `4` | Quantidade de arquivos menores |
-| `PIPELINE_ROWS_PER_SEC_FLOOR` | `5000` | Linhas/s mínimo sustentado no Celeron (streaming) |
-| `PIPELINE_TIMEOUT_MARGIN_PCT` | `25` | Margem para carga no Postgres e variação |
-| `PIPELINE_TIMEOUT_SEC` | `12000` | Resultado: **3h20m** |
+| `DATA_LINES_FILE1` | `28175408` | Linhas do primeiro `.zip` (`Empresas0.zip`) |
+| `DATA_LINES_OTHERS_EACH` | `4494860` | Linhas de cada um dos outros 9 arquivos |
+| `DATA_FILES_OTHERS` | `9` | Quantidade de arquivos menores |
+| `PIPELINE_MEM_LIMIT` | `1g` | RAM do container (sem swap) |
+| `PIPELINE_CPU_LIMIT` | `2.0` | vCPUs do container |
+| `PIPELINE_TIMEOUT_SEC` | `3600` | Orçamento fixo: **60 min** |
 
-```
-(48.000.000 / 5000) × 1.25 = 12.000 s = 3h20m
-```
+### Referência rápida — throughput exigido por orçamento
 
-A estimativa por bytes (`DATA_UNCOMPRESSED_MB`) é usada como validação cruzada — o maior valor vence.
+Quanto mais apertado o orçamento, maior o throughput mínimo. É o número que separa um pipeline em streaming bem feito de um script ingênuo.
 
-### Referência rápida
-
-| Timeout | Throughput médio exigido (~48M linhas) |
-| :--- | :--- |
-| 90 min | ~8.900 linhas/s — só soluções bem otimizadas |
-| 2 h | ~6.700 linhas/s |
-| **3h20m** | **~4.400 linhas/s** — margem para pipelines corretos em streaming |
-| 4 h | ~3.300 linhas/s — muito folgado |
+| Orçamento | Throughput exigido (68,6M linhas) | Leitura |
+| :--- | :--- | :--- |
+| 30 min | **~38.100 linhas/s** | só engines vetorizadas/nativas |
+| 45 min | **~25.400 linhas/s** | otimização séria |
+| **60 min** | **~19.100 linhas/s** | **limite oficial** — streaming eficiente obrigatório |
+| 90 min | ~12.700 linhas/s | (folgado — não é o cap) |
+| 120 min | ~9.500 linhas/s | (folgado — não é o cap) |
 
 ### O que consome tempo no pipeline
 
 | Etapa | Impacto |
 | :--- | :--- |
-| Leitura dos 5 `.zip` em streaming | I/O + descompressão |
-| Parse CSV (`;`, ISO-8859-1, aspas) | CPU por linha |
+| Leitura dos 10 `.zip` em streaming | I/O + descompressão (4,0x) |
+| Parse CSV (`;`, ISO-8859-1, aspas com `;` embutido) | CPU por linha |
 | Derivação das 3 colunas de negócio | CPU por linha |
-| Filtros (`capital_social > 1000`, MEI/CPF) | CPU — descarta a maioria das 48M linhas |
-| Carga no Postgres (`COPY`/batch) | I/O de rede Docker + disco |
+| Filtros (`capital_social > 1000`, MEI/CPF) | CPU — descarta ~63% das 68,6M linhas |
+| Carga no Postgres (`COPY`/batch) | I/O de rede Docker + disco (~25M linhas) |
 
 Para recalcular: `source evaluator/scripts/lib/estimate-timeout.sh && print_timeout_estimate`
 
@@ -271,11 +275,11 @@ Para recalcular: `source evaluator/scripts/lib/estimate-timeout.sh && print_time
 
 | Recurso | Recomendação |
 | :--- | :--- |
-| RAM do host | **≥ 6 GB** (2 GB participante + Postgres + S3/MinIO + SO) |
+| RAM do host | **≥ 5 GB** (1 GB participante + Postgres + S3/MinIO + SO) |
 | Avaliações simultâneas | **1** (fila única) |
 | Build vs pipeline | Tempos separados — build limitado a 15 min / 1 CPU |
 
-💡 *Dica:* use processamento em batch/streaming (Polars, DuckDB, PyArrow, Rust ou Go).
+💡 *Dica:* com 1 GB de RAM e 60 min, força bruta não passa. Use engines de streaming/vetorizadas (Polars, DuckDB, PyArrow, Rust ou Go) e `COPY` em lotes.
 
 ---
 
